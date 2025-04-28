@@ -82,15 +82,11 @@ void ads1115_set_mux(ads1115_t* ads, ads1115_mux_t mux) {
 
 void ads1115_set_rdy_pin(ads1115_t* ads, gpio_num_t gpio) {
   const static char* TAG = "ads1115_set_rdy_pin";
-  gpio_config_t io_conf;
   esp_err_t err;
 
-  io_conf.intr_type = GPIO_PIN_INTR_NEGEDGE; // positive to negative (pulled down)
-  io_conf.pin_bit_mask = 1<<gpio;
-  io_conf.mode = GPIO_MODE_INPUT;
-  io_conf.pull_up_en = 1;
-  io_conf.pull_down_en = 0;
-  gpio_config(&io_conf); // set gpio configuration
+  ESP_ERROR_CHECK(gpio_set_direction(gpio, GPIO_MODE_INPUT));
+  ESP_ERROR_CHECK(gpio_set_intr_type(gpio, GPIO_INTR_NEGEDGE));
+  ESP_ERROR_CHECK(gpio_set_pull_mode(gpio, GPIO_PULLUP_ENABLE));
 
   ads->rdy_pin.gpio_evt_queue = xQueueCreate(1, sizeof(bool));
   gpio_install_isr_service(0);
