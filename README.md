@@ -92,14 +92,13 @@ Continuous or single-shot mode.
 Functions
 =========
 
-ads1115_t ads1115_config(i2c_port_t i2c_port,uint8_t address)
+ads1115_t ads1115_config(i2c_master_dev_handle_t i2c_dev_handle)
 -------------------------------------------------------------
 
 Setup of the device.
 
 *Parameters*
-  * `i2c_port`: the i2c bus number.
-  * `address`: the device's i2c address.
+  * `i2c_dev_handle`: the i2c bus handle.
 
 *Returns*
   * The configuration file, which is passed to all subsequent functions.
@@ -107,7 +106,7 @@ Setup of the device.
 *Notes*
   * This does not setup the i2c bus, this must be done before passing to this function.
 
-void ads1115_set_rdy_pin(ads1115_t* ads,gpio_num_t gpio)
+void ads1115_set_rdy_pin(ads1115_t* ads, gpio_num_t gpio)
 --------------------------------------------------------
 
 Sets up an optional data-ready pin to verify when conversions are complete.
@@ -156,14 +155,14 @@ Sets the sampling speed.
   * `ads`: the configuration file.
   * `sps`: the desired samples per second (see enumeration).
 
-void ads1115_set_max_ticks(ads1115_t* ads,TickType_t max_ticks)
+void ads1115_set_timeout_ms(ads1115_t* ads, int timeout_ms)
 ---------------------------------------------------------------
 
-Sets the maximum wait ticks for the i2c reads and writes. See the [i2c documentation](http://esp-idf.readthedocs.io/en/latest/api-reference/peripherals/i2c.html#_CPPv220i2c_master_cmd_begin10i2c_port_t16i2c_cmd_handle_t10TickType_t).
+Sets the timeout for the i2c reads and writes. See the [i2c documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/i2c.html#_CPPv419i2c_master_transmit23i2c_master_dev_handle_tPK7uint8_t6size_ti).
 
 *Parameters*
   * `ads`: the configuration file.
-  * `max_ticks`: maximum wait ticks.
+  * `timeout_ms`: timeout in milliseconds.
 
 int16_t ads1115_get_raw(ads1115_t* ads)
 ---------------------------------------

@@ -95,7 +95,7 @@ void ads1115_set_mux(ads1115_t* ads, ads1115_mux_t mux); // set multiplexer
 void ads1115_set_pga(ads1115_t* ads, ads1115_fsr_t fsr); // set fsr
 void ads1115_set_mode(ads1115_t* ads, ads1115_mode_t mode); // set read mode
 void ads1115_set_sps(ads1115_t* ads, ads1115_sps_t sps); // set sampling speed
-void ads1115_set_timeout_ms(ads1115_t* ads, int timeout_ms); // maximum wait ticks for i2c bus
+void ads1115_set_timeout_ms(ads1115_t* ads, int timeout_ms); // maximum wait time for i2c bus
 
 int16_t ads1115_get_raw(ads1115_t* ads); // get voltage in bits
 double ads1115_get_voltage(ads1115_t* ads); // get voltage in volts
