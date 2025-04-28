@@ -5,9 +5,12 @@ extern "C" {
 #ifndef ADS1115_H
 #define ADS1115_H
 
-#include <stdio.h>
-#include "driver/i2c.h"
-#include "driver/gpio.h"
+#include "driver/i2c_types.h"
+#include "soc/gpio_num.h"
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
 
 typedef enum { // register address
   ADS1115_CONVERSION_REGISTER_ADDR = 0,
@@ -71,21 +74,20 @@ typedef union { // configuration register
 typedef struct {
   bool in_use; // gpio is used
   gpio_num_t pin; // ready pin
-  xQueueHandle gpio_evt_queue; // pin triggered queue
+  QueueHandle_t gpio_evt_queue; // pin triggered queue
 } ads1115_rdy_pin_t;
 
 typedef struct {
   ADS1115_CONFIG_REGISTER_Type config;
-  i2c_port_t i2c_port;
-  int address;
+  i2c_master_dev_handle_t i2c_dev_handle;
   ads1115_rdy_pin_t rdy_pin;
   ads1115_register_addresses_t last_reg; // save last accessed register
   bool changed; // save if a value was changed or not
-  TickType_t max_ticks; // maximum wait ticks for i2c bus
+  int xfer_timeout_ms; // i2c bus transfer timeout
 } ads1115_t;
 
 // initialize device
-ads1115_t ads1115_config(i2c_port_t i2c_port, uint8_t address); // set up configuration
+ads1115_t ads1115_config(i2c_master_dev_handle_t i2c_dev_handle); // set up configuration
 
 // set configuration
 void ads1115_set_rdy_pin(ads1115_t* ads, gpio_num_t gpio); // set up data-ready pin
@@ -93,7 +95,7 @@ void ads1115_set_mux(ads1115_t* ads, ads1115_mux_t mux); // set multiplexer
 void ads1115_set_pga(ads1115_t* ads, ads1115_fsr_t fsr); // set fsr
 void ads1115_set_mode(ads1115_t* ads, ads1115_mode_t mode); // set read mode
 void ads1115_set_sps(ads1115_t* ads, ads1115_sps_t sps); // set sampling speed
-void ads1115_set_max_ticks(ads1115_t* ads, TickType_t max_ticks); // maximum wait ticks for i2c bus
+void ads1115_set_timeout_ms(ads1115_t* ads, int timeout_ms); // maximum wait ticks for i2c bus
 
 int16_t ads1115_get_raw(ads1115_t* ads); // get voltage in bits
 double ads1115_get_voltage(ads1115_t* ads); // get voltage in volts

@@ -1,60 +1,48 @@
-
+#include <stdint.h>
 #include "ads1115.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
+
+#include "esp_err.h"
 #include "esp_log.h"
+
+#include "driver/gpio.h"
+#include "hal/gpio_types.h"
+
+#include "driver/i2c_master.h"
+
 
 static void IRAM_ATTR gpio_isr_handler(void* arg) {
   const bool ret = 1; // dummy value to pass to queue
-  xQueueHandle gpio_evt_queue = (xQueueHandle) arg; // find which queue to write
+  QueueHandle_t gpio_evt_queue = (QueueHandle_t) arg; // find which queue to write
   xQueueSendFromISR(gpio_evt_queue, &ret, NULL);
 }
 
 static esp_err_t ads1115_write_register(ads1115_t* ads, ads1115_register_addresses_t reg, uint16_t data) {
-  i2c_cmd_handle_t cmd;
-  esp_err_t ret;
-  uint8_t out[2];
 
-  out[0] = data >> 8; // get 8 greater bits
-  out[1] = data & 0xFF; // get 8 lower bits
-  cmd = i2c_cmd_link_create();
-  i2c_master_start(cmd); // generate a start command
-  i2c_master_write_byte(cmd,(ads->address<<1) | I2C_MASTER_WRITE,1); // specify address and write command
-  i2c_master_write_byte(cmd,reg,1); // specify register
-  i2c_master_write(cmd,out,2,1); // write it
-  i2c_master_stop(cmd); // generate a stop command
-  ret = i2c_master_cmd_begin(ads->i2c_port, cmd, ads->max_ticks); // send the i2c command
-  i2c_cmd_link_delete(cmd);
-  ads->last_reg = reg; // change the internally saved register
-  return ret;
+  uint8_t out[3];
+  out[0] = reg;
+  out[1] = data >> 8; // get 8 greater bits
+  out[2] = data & 0xFF; // get 8 lower bits
+
+  esp_err_t err = i2c_master_transmit(ads->i2c_dev_handle, out, sizeof(out), ads->xfer_timeout_ms);
+
+  if (err == ESP_OK) {
+    ads->last_reg = reg;
+  }
+
+  return err;
 }
 
 static esp_err_t ads1115_read_register(ads1115_t* ads, ads1115_register_addresses_t reg, uint8_t* data, uint8_t len) {
-  i2c_cmd_handle_t cmd;
-  esp_err_t ret;
 
   if(ads->last_reg != reg) { // if we're not on the correct register, change it
-    cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd,(ads->address<<1) | I2C_MASTER_WRITE,1);
-    i2c_master_write_byte(cmd,reg,1);
-    i2c_master_stop(cmd);
-    i2c_master_cmd_begin(ads->i2c_port, cmd, ads->max_ticks);
-    i2c_cmd_link_delete(cmd);
+    ESP_ERROR_CHECK(i2c_master_transmit(ads->i2c_dev_handle, (uint8_t*) &reg, 1, ads->xfer_timeout_ms));
     ads->last_reg = reg;
   }
-  cmd = i2c_cmd_link_create();
-  i2c_master_start(cmd); // generate start command
-  i2c_master_write_byte(cmd,(ads->address<<1) | I2C_MASTER_READ,1); // specify address and read command
-  i2c_master_read(cmd, data, len, 0); // read all wanted data
-  i2c_master_stop(cmd); // generate stop command
-  ret = i2c_master_cmd_begin(ads->i2c_port, cmd, ads->max_ticks); // send the i2c command
-  i2c_cmd_link_delete(cmd);
-  return ret;
+
+  return i2c_master_receive(ads->i2c_dev_handle, data, len, ads->xfer_timeout_ms);
 }
 
-ads1115_t ads1115_config(i2c_port_t i2c_port, uint8_t address) {
+ads1115_t ads1115_config(i2c_master_dev_handle_t i2c_dev_handle) {
   ads1115_t ads; // setup configuration with default values
   ads.config.bit.OS = 1; // always start conversion
   ads.config.bit.MUX = ADS1115_MUX_0_GND;
@@ -66,12 +54,11 @@ ads1115_t ads1115_config(i2c_port_t i2c_port, uint8_t address) {
   ads.config.bit.COMP_LAT = 0;
   ads.config.bit.COMP_QUE = 0b11;
 
-  ads.i2c_port = i2c_port; // save i2c port
-  ads.address = address; // save i2c address
+  ads.i2c_dev_handle = i2c_dev_handle;
   ads.rdy_pin.in_use = 0; // state that rdy_pin not used
   ads.last_reg = ADS1115_MAX_REGISTER_ADDR; // say that we accessed invalid register last
   ads.changed = 1; // say we changed the configuration
-  ads.max_ticks = 10/portTICK_PERIOD_MS;
+  ads.xfer_timeout_ms = 10;
   return ads; // return the completed configuration
 }
 
@@ -117,8 +104,8 @@ void ads1115_set_sps(ads1115_t* ads, ads1115_sps_t sps) {
   ads->changed = 1;
 }
 
-void ads1115_set_max_ticks(ads1115_t* ads, TickType_t max_ticks) {
-  ads->max_ticks = max_ticks;
+void ads1115_set_timeout_ms(ads1115_t* ads, int timeout_ms) {
+  ads->xfer_timeout_ms = timeout_ms;
 }
 
 int16_t ads1115_get_raw(ads1115_t* ads) {
