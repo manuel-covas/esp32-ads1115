@@ -33,9 +33,12 @@ static esp_err_t ads1115_write_register(ads1115_t* ads, ads1115_register_address
 }
 
 static esp_err_t ads1115_read_register(ads1115_t* ads, ads1115_register_addresses_t reg, uint8_t* data, uint8_t len) {
+  esp_err_t err;
 
   if(ads->last_reg != reg) { // if we're not on the correct register, change it
-    ESP_ERROR_CHECK(i2c_master_transmit(ads->i2c_dev_handle, (uint8_t*) &reg, 1, ads->xfer_timeout_ms));
+    err = i2c_master_transmit(ads->i2c_dev_handle, (uint8_t*) &reg, 1, ads->xfer_timeout_ms);
+    if (err != ESP_OK)
+        return err;
     ads->last_reg = reg;
   }
 
