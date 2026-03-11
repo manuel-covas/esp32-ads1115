@@ -141,10 +141,6 @@ int16_t ads1115_get_raw(ads1115_t* ads) {
     xQueueReceive(ads->rdy_pin.gpio_evt_queue, &tmp, portMAX_DELAY);
     gpio_isr_handler_remove(ads->rdy_pin.pin);
   }
-  else {
-    // wait for 1 ms longer than the sampling rate, plus a little bit for rounding
-    vTaskDelay((((1000/sps[ads->config.bit.DR]) + 1) / portTICK_PERIOD_MS)+1);
-  }
 
   err = ads1115_read_register(ads, ADS1115_CONVERSION_REGISTER_ADDR, data, len);
   if(err) {
