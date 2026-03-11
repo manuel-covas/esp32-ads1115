@@ -1,4 +1,6 @@
 #include <stdint.h>
+#include <float.h>
+
 #include "ads1115.h"
 
 #include "esp_err.h"
@@ -132,7 +134,7 @@ int16_t ads1115_get_raw(ads1115_t* ads) {
         gpio_isr_handler_remove(ads->rdy_pin.pin);
         xQueueReset(ads->rdy_pin.gpio_evt_queue);
       }
-      return 0;
+      return INT16_MIN;
     }
     ads->changed = 0; // say that the data is unchanged now
   }
@@ -145,7 +147,7 @@ int16_t ads1115_get_raw(ads1115_t* ads) {
   err = ads1115_read_register(ads, ADS1115_CONVERSION_REGISTER_ADDR, data, len);
   if(err) {
     ESP_LOGE(TAG,"could not read from device: %s",esp_err_to_name(err));
-    return 0;
+    return INT16_MIN;
   }
   return ((uint16_t)data[0] << 8) | (uint16_t)data[1];
 }
@@ -156,5 +158,8 @@ double ads1115_get_voltage(ads1115_t* ads) {
   int16_t raw;
 
   raw = ads1115_get_raw(ads);
+  if (raw == INT16_MIN)
+      return DBL_MIN;
+
   return (double)raw * fsr[ads->config.bit.PGA] / (double)bits;
 }
